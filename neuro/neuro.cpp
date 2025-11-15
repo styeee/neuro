@@ -1,35 +1,44 @@
 ﻿#include <iostream>
-#include <vector>
 #include <initializer_list>
 
 class neuron
 {
-	std::vector<float>values;
-	std::vector<float>weights;
-	float res;
+	typedef float real;
 
-	float f(float x)
+	size_t size=0;
+	real* values=nullptr;	
+	real* weights=nullptr;
+	real res;
+
+	real f(real x)
 	{return 1./(1.+exp(-x));}
 public:
-	void value(size_t id,float f)
+	void value(size_t id,real f)
 	{values[id]=f;}
-	void weight(size_t id,float f)
+	void weight(size_t id,real f)
 	{weights[id]=f;}
 	
 	void setup(size_t size)
-	{values.resize(size);weights.resize(size);}
+	{
+		this->size=size;
 
-	void calc(float bias)
+		delete[] values;
+		values=new real[size];
+		delete[] weights;
+		weights=new real[size];
+	}
+
+	void calc(real bias)
 	{
 		this->res=0;
 
-		for(size_t i=0;i<values.size();i++)
+		for(size_t i=0;i<size;i++)
 			res+=values[i]*weights[i];
 
 		res=f(res+bias);
 	}
 
-	float get()const
+	real get()const
 	{return res;}
 };
 
