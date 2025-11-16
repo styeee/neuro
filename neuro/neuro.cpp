@@ -11,18 +11,21 @@ private:
 
 	std::vector<real> weights;
 	std::vector<neuron>* prev;
-	real res;
-	real bias;
+	real bias=0;
+	real res=0;
 
-	real f(real x)
+	static real f(real x)
 	{return 1./(1.+exp(-x));}
 
 public:
 	
+	size_t size()const
+	{return weights.size();}
+
 	void calc()
 	{
 		res=0;
-		for(size_t i=0;i<weights.size();i++)
+		for(size_t i=0;i<size();i++)
 			res+=(*prev)[i].value()*weights[i];
 		res=f(res+bias);
 	}
@@ -84,36 +87,59 @@ public:
 	{self[id].bias=v;}
 };
 
-real test(real x,real y)
+class network
 {
-	layer start(2);
-		start.value(0,x);
-		start.value(1,y);
+	std::vector<layer*> self;
+public:
+	network(std::initializer_list<size_t> form)
+	:
+		self(form.size())
+	{
 
-	layer first(2);
-		first.connect(&start);
-		
-		first.weight(0,0,20);
-		first.weight(0,1,20);
-		first.set_bias(0,-10);
+		size_t i=0;
 
-		first.weight(1,0,-20);
-		first.weight(1,1,-20);
-		first.set_bias(1,30);
+		for(size_t n:form)
+			self[i++]=new layer(n);
 
-	layer second(1);
-		second.connect(&first);
-		second.weight(0,0,20);
-		second.weight(0,1,20);
-		second.set_bias(0,-30);
+		for(size_t i=1;i<self.size();i++)
+			self[i]->connect(self[i-1]);
+	}
 
-	first.calc();
-	second.calc();
+	std::vector<real> predict(std::initializer_list<real> x)
+	{
+		size_t i=0;
+		for(real e:x)
+			self[0]->value(i++,e);
 
-	return second.value(0);
-}
+		for(size_t i=1;i<self.size();i++)
+			self[i]->calc();
+
+		std::vector<real> r(self.back()->size());
+		for(size_t i=0;i<r.size();i++)
+			r[i]=self.back()->value(i);
+
+		return r;
+	}
+
+	void weight(std::vector<real> w)
+	{
+		size_t n=0;
+
+		for(size_t k=1;k<self.size();k++)
+		for(size_t j=0;j<self[k]->size();j++)
+		{
+			for(size_t i=0;i<self[k-1]->size();i++)
+				self[k]->weight(j,i,w[n++]);
+
+			self[k]->set_bias(j,w[n++]);
+		}
+	}
+};
 
 int main()
 {
-	return test(1,0)>.5;
+	network net({2,2,1});
+	net.weight({20,20,-10, -20,-20,30, 20,20,-30 });
+
+	return net.predict({0,1})[0]>.5;
 }
