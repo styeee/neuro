@@ -1,103 +1,119 @@
 ﻿#include <iostream>
-#include <initializer_list>
+#include <vector>
+#include <math.h>
+
+typedef float real;
 
 class neuron
 {
-	typedef float real;
+private:
+	friend class layer;
 
-	size_t size=0;
-	real* values=nullptr;	
-	real* weights=nullptr;
+	std::vector<real> weights;
+	std::vector<neuron>* prev;
 	real res;
+	real bias;
 
 	real f(real x)
 	{return 1./(1.+exp(-x));}
+
 public:
-	void value(size_t id,real f)
-	{values[id]=f;}
-	void weight(size_t id,real f)
-	{weights[id]=f;}
 	
-	void setup(size_t size)
+	void calc()
 	{
-		this->size=size;
-
-		delete[] values;
-		values=new real[size];
-		delete[] weights;
-		weights=new real[size];
-	}
-
-	void calc(real bias)
-	{
-		this->res=0;
-
-		for(size_t i=0;i<size;i++)
-			res+=values[i]*weights[i];
-
+		res=0;
+		for(size_t i=0;i<weights.size();i++)
+			res+=(*prev)[i].value()*weights[i];
 		res=f(res+bias);
 	}
 
-	real get()const
+	real weight(size_t id)const
+	{return weights[id];}
+
+	void weight(size_t id,real v)
+	{weights[id]=v;}
+
+	real value()const
 	{return res;}
+
+	void value(real v)
+	{res=v;}
 };
 
-class neuro_xor
+class layer
 {
-	neuron a;
-	float bias1;
-	neuron b;
-	float bias2;
-	neuron c;
-	float bias3;
+private:
+	std::vector<neuron> self;
 public:
-	void init()
+	layer(size_t size)
+	:
+		self(size)
+	{}
+
+	void calc()
 	{
-		a.setup(2);
-		b.setup(2);
-		c.setup(2);
-
-		a.weight(0,20);
-		a.weight(1,20);
-		bias1=-30;
-
-		b.weight(0,-20);
-		b.weight(1,-20);  
-		bias2=10;
-
-		c.weight(0,20);
-		c.weight(1,20);
-		bias3=-10;
+		for(neuron& e:self)
+			e.calc();
 	}
 
-	float calc(float x,float y)
+	void connect(layer* prev)
 	{
-		a.value(0,x);
-		a.value(1,y);
-		b.value(0,x);
-		b.value(1,y);
-
-		a.calc(bias1);
-		b.calc(bias2);
-
-		c.value(0,a.get());
-		c.value(1,b.get());
-		c.calc(bias3);
-
-		return c.get();
+		for(neuron& e:self)
+		{
+			e.weights.resize(prev->size());
+			e.prev=&prev->self;
+		}
 	}
+
+	size_t size()const
+	{return self.size();}
+
+	real weight(size_t i,size_t j)const
+	{return self[i].weight(j);}
+
+	void weight(size_t i,size_t j,real v)
+	{self[i].weight(j,v);}
+
+	real value(size_t id)const
+	{return self[id].value();}
+
+	void value(size_t id,real v)
+	{return self[id].value(v);}
+
+	void set_bias(size_t id,real v)
+	{self[id].bias=v;}
 };
+
+real test(real x,real y)
+{
+	layer start(2);
+		start.value(0,x);
+		start.value(1,y);
+
+	layer first(2);
+		first.connect(&start);
+		
+		first.weight(0,0,20);
+		first.weight(0,1,20);
+		first.set_bias(0,-10);
+
+		first.weight(1,0,-20);
+		first.weight(1,1,-20);
+		first.set_bias(1,30);
+
+	layer second(1);
+		second.connect(&first);
+		second.weight(0,0,20);
+		second.weight(0,1,20);
+		second.set_bias(0,-30);
+
+	first.calc();
+	second.calc();
+
+	return second.value(0);
+}
 
 int main()
 {
-	neuro_xor test;
-	test.init();
-
-	std::cout<<(test.calc(1,0)>.5)<<std::endl;
-	std::cout<<(test.calc(0,1)>.5)<<std::endl;
-	std::cout<<(test.calc(1,1)>.5)<<std::endl;
-	std::cout<<(test.calc(0,0)>.5)<<std::endl;
-	
-
-	return 0;
+	return test(1,0)>.5;
 }
