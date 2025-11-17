@@ -3,7 +3,7 @@
 #
 
 # Добавьте источник в исполняемый файл этого проекта.
-add_executable (neuro "neuro.cpp" )
+add_executable (neuro "neuro.cpp"  "network.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET neuro PROPERTY CXX_STANDARD 20)
