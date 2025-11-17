@@ -24,48 +24,48 @@ public:
 
 	network(const std::vector<size_t> form)
 	:
-		layers(form.size()),//количевство слоев
-		weights(form.size()-1)//количевство весов
+		layers(form.size()),
+		weights(form.size()-1)
 	{
-		for(size_t i=0;i<form.size();i++)//каждый слой
-			layers[i].resize(form[i]);//заполняется нейронами
+		for(size_t i=0;i<form.size();i++)
+			layers[i].resize(form[i]);
 
-		for(size_t j=0;j<form.size()-1;j++)//каждый вес
+		for(size_t j=0;j<form.size()-1;j++)
 		{
-			weights[j].resize(form[j]);//заполняется спискаи весов
+			weights[j].resize(form[j]);
 
-			for(size_t i=0;i<form[j];i++)//каждый список весов
-				weights[j][i].resize(form[j+1]);//заполняется весами
+			for(size_t i=0;i<form[j];i++)
+				weights[j][i].resize(form[j+1]);
 		}
 	}
 
 	void weight(const std::vector<real>& w,const std::vector<real>& b)
 	{
 		size_t n=0;
-		for(size_t k=0;k<weights.size();k++)//каждый слой
-		for(size_t j=0;j<weights[k].size();j++)//каждый нейрон
-		for(size_t i=0;i<weights[k][j].size();i++)//каждый сосед
+		for(size_t k=0;k<weights.size();k++)
+		for(size_t j=0;j<weights[k].size();j++)
+		for(size_t i=0;i<weights[k][j].size();i++)
 			weights[k][j][i]=w[n++];
 		
 		n=0;
-		for(size_t j=1;j<layers.size();j++)//каждый слой
-		for(size_t i=0;i<layers[j].size();i++)//каждый нейрон
+		for(size_t j=1;j<layers.size();j++)
+		for(size_t i=0;i<layers[j].size();i++)
 			layers[j][i].bias=b[n++];
 	}
 
 	void weight(real power)
 	{
-		for(size_t k=0;k<weights.size();k++)//каждый слой
-		for(size_t j=0;j<weights[k].size();j++)//каждый нейрон
-		for(size_t i=0;i<weights[k][j].size();i++)//каждый сосед
+		for(size_t k=0;k<weights.size();k++)
+		for(size_t j=0;j<weights[k].size();j++)
+		for(size_t i=0;i<weights[k][j].size();i++)
 		{
 			const real d=layers[k+1][i].error*layers[k][j].res*power;
-			weights[k][j][i]-=d;
+			weights[k][j][i]+=d;
 		}
 
-		for(size_t j=1;j<layers.size();j++)//каждый слой
-		for(size_t i=0;i<layers[j].size();i++)//каждый нейрон
-			layers[j][i].bias-=layers[j][i].error*power;
+		for(size_t j=1;j<layers.size();j++)
+		for(size_t i=0;i<layers[j].size();i++)
+			layers[j][i].bias+=layers[j][i].error*power;
 	}
 
 	void input(const std::vector<real>& data)
@@ -86,11 +86,11 @@ public:
 
 	void forward()
 	{
-		for(size_t k=1;k<layers.size();k++)//каждый слой
-		for(size_t j=0;j<layers[k].size();j++)//каждый нейрон
+		for(size_t k=1;k<layers.size();k++)
+		for(size_t j=0;j<layers[k].size();j++)
 		{
 			layers[k][j].res=0;
-			for(size_t i=0;i<layers[k-1].size();i++)//каждый сосед
+			for(size_t i=0;i<layers[k-1].size();i++)
 				layers[k][j].res+=layers[k-1][i].res*weights[k-1][i][j];
 			layers[k][j].res=f(layers[k][j].res+layers[k][j].bias);
 		}
@@ -121,7 +121,6 @@ public:
 	(
 		const std::vector<real>& i,
 		const std::vector<real>& o,
-		size_t count,
 		real power
 	)
 	{
@@ -131,28 +130,43 @@ public:
 		weight(power);
 	}
 
-	void good_weight()
+	std::vector<real> predict(const std::vector<real>& x)
 	{
-		weight({20,-20,20,-20,20,20},{-10,30,-30});
+		input(x); 
+		forward();
+		return output();
 	}
 };
 
 int main()
 {
-    network test({2,2,1});
-	test.good_weight();
-    
-    test.input({0,0}); test.forward(); 
-    std::cout << "0,0 -> " << test.output()[0] << std::endl;
-    
-    test.input({0,1}); test.forward();
-    std::cout << "0,1 -> " << test.output()[0] << std::endl;
-    
-    test.input({1,0}); test.forward();
-    std::cout << "1,0 -> " << test.output()[0] << std::endl;
-    
-    test.input({1,1}); test.forward();
-    std::cout << "1,1 -> " << test.output()[0] << std::endl;
+	network test({2,2,1});
+	test.weight({0.2, -0.3, -0.1, 0.4, 0.5,-0.4},{0.1,-0.2,0.05});
+	
+	const real k=.6;
+	for(int e=0;e<20000;e++)
+	{
+		test.learn({0,0},{0},k);
+		test.learn({0,1},{1},k);
+		test.learn({1,0},{1},k);
+		test.learn({1,1},{0},k);
+	}
 
-    return 0;
+	std::cout<<"0 XOR 0=";
+	std::cout<<test.predict({0,0})[0];
+	std::cout<<std::endl;
+
+	std::cout<<"1 XOR 1=";
+	std::cout<<test.predict({1,1})[0];
+	std::cout<<std::endl;
+
+	std::cout<<"0 XOR 1=";
+	std::cout<<test.predict({0,1})[0];
+	std::cout<<std::endl;
+
+	std::cout<<"1 XOR 0=";
+	std::cout<<test.predict({1,0})[0];
+	std::cout<<std::endl;
+	
+	return 0;
 }
